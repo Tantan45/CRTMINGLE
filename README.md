@@ -56,7 +56,7 @@ crtingle/
 1. Install Node.js 20 or newer and run `npm install` in this folder.
 2. Copy `.env.example` to `.env`.
 3. Set `SESSION_SECRET` and `FINGERPRINT_SECRET` to separate random values of at least 32 characters.
-4. Choose a separate staff portal code of at least 14 characters. With `SESSION_SECRET` already set in `.env`, run `npm run admin:hash -- "your-staff-code"` and copy the result into `ADMIN_ACCESS_CODE_HASH`.
+4. Choose a separate staff portal code of at least 8 characters. With `SESSION_SECRET` already set in `.env`, run `npm run admin:hash -- "your-staff-code"` and copy the result into `ADMIN_ACCESS_CODE_HASH`.
 5. Configure `COUNSELOR_CONTACT`, `CRISIS_RESOURCE`, timezone, and any extra `BLOCKED_TERMS`.
 6. Run `npm run build`, then `npm run dev`. Open `http://localhost:3000` and select **Start chatting**, accept the Rules popup, choose an optional nickname and interests, then start a chat.
 7. Open `http://localhost:3000/admin` and enter the staff access code to review reports and manage session bans.
