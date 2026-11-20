@@ -21,11 +21,13 @@ const {attachChat}=require('./sockets/chat');
 const app=express(),server=http.createServer(app);if(process.env.TRUST_PROXY==='true')app.set('trust proxy',1);
 const io=new Server(server,{maxHttpBufferSize:10_000,serveClient:true});
 app.set('io',io);
-const sessionDir=process.env.VERCEL?'/tmp/crtmingle-sessions':path.resolve('./data');require('fs').mkdirSync(sessionDir,{recursive:true});
+// Keep SQLite sessions beside the configured database so a mounted data disk preserves them.
+const sessionDir=process.env.VERCEL?'/tmp/crtmingle-sessions':process.env.SESSION_STORE_PATH||path.dirname(path.resolve(process.env.DATABASE_PATH||'./data/crtmingle.sqlite'));require('fs').mkdirSync(sessionDir,{recursive:true});
 const sessionMiddleware=session({name:'crtmingle.sid',store:new SQLiteStore({db:'sessions.sqlite',dir:sessionDir}),secret:process.env.SESSION_SECRET||'development-secret-change-this-before-deploying',resave:false,saveUninitialized:false,cookie:{httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:8*60*60_000}});
 app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'","https://cdn.socket.io"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'","data:"],connectSrc:["'self'","ws:","wss:"]}}}));
 app.use(compression());app.use(express.json({limit:'10kb'}));app.use(sessionMiddleware);io.engine.use(sessionMiddleware);
-app.use('/api/auth',require('express-rate-limit').rateLimit({windowMs:15*60_000,limit:20,standardHeaders:true,legacyHeaders:false}));
+// Allow many students behind the same campus NAT while still limiting bursts.
+app.use('/api/auth',require('express-rate-limit').rateLimit({windowMs:15*60_000,limit:300,standardHeaders:true,legacyHeaders:false}));
 app.use('/api/auth',authRoutes);app.use('/api/student',studentRoutes);app.use('/api/admin',adminRoutes);
 // Serve the separate chat page and forward old demo bookmarks to it.
 app.get('/chat',(req,res)=>res.sendFile(path.join(__dirname,'..','public','chat.html')));
