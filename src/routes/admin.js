@@ -61,12 +61,12 @@ router.get('/data', requireAdmin, (req, res) => {
     chatsToday: db.prepare('SELECT COUNT(*) AS n FROM chat_rooms WHERE created_at>=?').get(midnight).n
   };
   const auditLog = db.prepare('SELECT admin,action,target_id,details,created_at FROM admin_audit ORDER BY id DESC LIMIT 50').all();
-  res.json({ reports, stats, auditLog, timezone, openHour: Number(setting('open_hour', process.env.CHAT_OPEN_HOUR || 15)), closeHour: Number(setting('close_hour', process.env.CHAT_CLOSE_HOUR || 21)), reportLimit: Number(setting('report_limit', process.env.REPORT_LIMIT || 3)), reportWindowHours: Number(setting('report_window_hours', process.env.REPORT_WINDOW_HOURS || 24)), blockedTerms: setting('blocked_terms', process.env.BLOCKED_TERMS || 'fuck,shit,bitch,asshole') });
+  res.json({ reports, stats, auditLog, timezone, alwaysOpen: true, reportLimit: Number(setting('report_limit', process.env.REPORT_LIMIT || 3)), reportWindowHours: Number(setting('report_window_hours', process.env.REPORT_WINDOW_HOURS || 24)), blockedTerms: setting('blocked_terms', process.env.BLOCKED_TERMS || 'fuck,shit,bitch,asshole') });
 });
 
 // Ban or unban by session, fingerprint, or report; edit chat safety settings.
 router.post('/action', requireAdmin, (req, res) => {
-  const { action, reportId, sessionId, fingerprintHash, openHour, closeHour, reportLimit, reportWindowHours, blockedTerms } = req.body || {};
+  const { action, reportId, sessionId, fingerprintHash, reportLimit, reportWindowHours, blockedTerms } = req.body || {};
   let targetSession = typeof sessionId === 'string' ? sessionId.trim().slice(0, 128) : '';
   let targetFingerprint = typeof fingerprintHash === 'string' ? fingerprintHash.trim().toLowerCase() : '';
   let report = null;
@@ -95,7 +95,6 @@ router.post('/action', requireAdmin, (req, res) => {
     audit(action, targetSession || targetFingerprint, reportId ? `report ${reportId}` : '');
   }
   if (action === 'dismiss' && Number.isInteger(reportId)) { db.prepare("UPDATE anonymous_reports SET status='dismissed' WHERE id=?").run(reportId); audit('dismiss report', String(reportId)); }
-  if (Number.isInteger(openHour) && Number.isInteger(closeHour) && openHour >= 0 && openHour <= 23 && closeHour >= 1 && closeHour <= 24 && openHour < closeHour) { writeSetting.run('open_hour', String(openHour)); writeSetting.run('close_hour', String(closeHour)); audit('change operating hours', '', `${openHour}:00-${closeHour}:00`); }
   if (Number.isInteger(reportLimit) && reportLimit >= 1 && reportLimit <= 20 && Number.isInteger(reportWindowHours) && reportWindowHours >= 1 && reportWindowHours <= 168) { writeSetting.run('report_limit', String(reportLimit)); writeSetting.run('report_window_hours', String(reportWindowHours)); audit('change report threshold', '', `${reportLimit} reports/${reportWindowHours} hours`); }
   if (typeof blockedTerms === 'string' && blockedTerms.length <= 5000) { const words = blockedTerms.split(',').map(word => word.trim()).filter(Boolean); if (words.length > 200 || words.some(word => word.length > 40 || !/^[\p{L}\p{N} _'-]+$/u.test(word))) return res.status(400).json({ error: 'Use up to 200 comma-separated words, max 40 letters/numbers each.' }); writeSetting.run('blocked_terms', words.join(',')); audit('edit blocked words', '', `${words.length} terms saved`); }
   res.json({ ok: true });

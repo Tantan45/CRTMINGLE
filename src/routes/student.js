@@ -12,10 +12,10 @@ router.post('/rules', (req, res) => {
   res.json({ ok: true });
 });
 
-// Return hours and support contacts for the anonymous chat session.
+// Return always-open chat availability and support contacts.
 router.get('/config', (req, res) => res.json({
-  open: Number(db.prepare("SELECT value FROM settings WHERE key='open_hour'").get()?.value ?? process.env.CHAT_OPEN_HOUR ?? 15),
-  close: Number(db.prepare("SELECT value FROM settings WHERE key='close_hour'").get()?.value ?? process.env.CHAT_CLOSE_HOUR ?? 21),
+  open: 0,
+  close: 24,
   timezone: process.env.CHAT_TIMEZONE || 'Asia/Manila',
   counselor: process.env.COUNSELOR_CONTACT || 'Ask your school counselor for help',
   crisis: process.env.CRISIS_RESOURCE || 'Contact local emergency services',

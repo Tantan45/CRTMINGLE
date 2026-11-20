@@ -1,6 +1,6 @@
 # CRTMINGLE
 
-Anonymous, text-only 1-on-1 chat for CRT students. There are no student accounts, logins, passwords, or email collection. Clicking **Start chatting** creates a secure anonymous session; matching stays subject to the Rules popup, moderation, and operating hours.
+Anonymous, text-only 1-on-1 chat for CRT students. There are no student accounts, logins, passwords, or email collection. Clicking **Start chatting** creates a secure anonymous session; chat matching is available 24 hours a day and remains subject to the Rules popup and moderation.
 
 ## Style guide
 
@@ -57,7 +57,7 @@ crtingle/
 2. Copy `.env.example` to `.env`.
 3. Set `SESSION_SECRET` and `FINGERPRINT_SECRET` to separate random values of at least 32 characters.
 4. Choose a separate staff portal code of at least 14 characters. With `SESSION_SECRET` already set in `.env`, run `npm run admin:hash -- "your-staff-code"` and copy the result into `ADMIN_ACCESS_CODE_HASH`.
-5. Configure `COUNSELOR_CONTACT`, `CRISIS_RESOURCE`, chat hours, timezone, and any extra `BLOCKED_TERMS`.
+5. Configure `COUNSELOR_CONTACT`, `CRISIS_RESOURCE`, timezone, and any extra `BLOCKED_TERMS`.
 6. Run `npm run build`, then `npm run dev`. Open `http://localhost:3000` and select **Start chatting**, accept the Rules popup, choose an optional nickname and interests, then start a chat.
 7. Open `http://localhost:3000/admin` and enter the staff access code to review reports and manage session bans.
 
@@ -71,7 +71,7 @@ Messages are text-only, filtered server-side, and rate-limited to five per ten s
 
 ## Admin Portal
 
-Staff can review reports and chat context, dismiss reports, warn/suspend/ban/unban by session ID, report, or fingerprint, edit blocked words and operating hours, adjust report thresholds, view live counts, and inspect the audit log. Admin access uses a separate access code hash in `.env`.
+Staff can review reports and chat context, dismiss reports, warn/suspend/ban/unban by session ID, report, or fingerprint, edit blocked words, adjust report thresholds, view live counts, and inspect the audit log. Chat is always available. Admin access uses a separate access code hash in `.env`.
 
 ## Deployment
 
