@@ -12,7 +12,7 @@
     "admin:hash": "node scripts/hash-admin-code.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
     "better-sqlite3": "^13.2.0",
