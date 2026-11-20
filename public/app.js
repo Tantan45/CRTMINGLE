@@ -35,7 +35,7 @@ async function copyTranscript(entries=activeTranscript){try{await navigator.clip
 function controls(active){$('#messageInput').disabled=!active;$('#sendMessage').disabled=!active;$('#nextChat').disabled=!active;$('#newStranger').disabled=!active;$('#reportChat').disabled=!active;$('#blockChat').disabled=!active;$('#stopChat').disabled=!active}
 // Attach authenticated realtime chat events and keep the online count current.
 function connectSocket(){
-  if(socket)socket.disconnect();socket=io();
+  if(socket)socket.disconnect();socket=io({transports:['websocket']});
   socket.on('connect_error',error=>toast(error.message));
   socket.on('online-count',count=>{$('#onlineCount').textContent=count});
   socket.on('queued',()=>{showChatSession();$('#sessionStatus').textContent='Searching...';activeTranscript=[];hasConversation=false;renderChat();$('#chatStatus').textContent=interests.size?'Searching for shared interests...':'Searching for a CRT student...';$('#strangerName').textContent='Finding a student...';$('#strangerAvatar').textContent='?';$('#strangerStatus').className='status-dot disconnected';controls(false);$('#stopChat').disabled=false;eventLine('You are in the queue. Hang tight!')});
