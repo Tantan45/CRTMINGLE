@@ -3,7 +3,7 @@ const path = require('path');
 const Database = require('better-sqlite3');
 
 // Open the local SQLite database and create the tables the app needs.
-const file = path.resolve(process.env.DATABASE_PATH || './data/crtmingle.sqlite');
+const file = path.resolve(process.env.DATABASE_PATH || (process.env.VERCEL ? '/tmp/crtmingle.sqlite' : './data/crtmingle.sqlite'));
 fs.mkdirSync(path.dirname(file), { recursive: true });
 const db = new Database(file);
 db.pragma('journal_mode = WAL');
