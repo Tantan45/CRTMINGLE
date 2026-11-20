@@ -29,5 +29,8 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.5",
     "tailwindcss": "^4.3.5"
+  },
+  "overrides": {
+    "node-gyp": "^10.3.1"
   }
 }
