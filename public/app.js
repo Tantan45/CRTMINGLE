@@ -6,7 +6,7 @@ const interestOptions=['Gaming','Music','Anime','Movies','Sports','Memes','Readi
 // Show a short status message without inserting it as HTML.
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200)}
 // Send JSON to the server and turn server errors into readable messages.
-async function api(url,data){const response=await fetch(url,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const result=await response.json().catch(()=>({}));if(!response.ok)throw Error(result.error||'Something went wrong.');return result}
+async function api(url,data){const response=await fetch(url,{method:data?'POST':'GET',credentials:'same-origin',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const result=await response.json().catch(()=>({}));if(!response.ok){const error=Error(result.error||'Something went wrong.');error.status=response.status;throw error}return result}
 // Load the anonymous session and show the chat controls when its cookie is valid.
 async function enterApp(){user=await api('/api/student/me');$('#chatArea').classList.remove('hidden');$('#chatArea').scrollIntoView({behavior:'smooth'});const config=await api('/api/student/config');$('#counselor').textContent='School counselor: '+config.counselor;$('#crisis').textContent=config.crisis;const showRules=!config.acceptedRules||new URLSearchParams(location.search).get('rules')==='1';if(showRules){rulesAccepted=false;$('#agreeRules').checked=false;$('#rulesDialog').showModal()}else{rulesAccepted=true}}
 // Draw the interest chips as text so custom tags cannot inject markup.
@@ -45,7 +45,7 @@ function connectSocket(){
 }
 // Ask the anonymous student session to queue with its current chat preferences.
 function getDeviceToken(){let token=localStorage.getItem('crtmingle-device-token');if(!/^[a-f0-9]{64}$/.test(token||'')){const bytes=crypto.getRandomValues(new Uint8Array(32));token=[...bytes].map(value=>value.toString(16).padStart(2,'0')).join('');localStorage.setItem('crtmingle-device-token',token)}return token}
-// Start an anonymous browser session from the main page, then show the chat setup.
+// Start or renew an anonymous browser session, then show chat setup and the rules.
 async function startAnonymousSession(){try{await api('/api/auth/anonymous-session',{deviceToken:getDeviceToken()});await enterApp()}catch(error){toast(error.message)}}
 function startChat(){if(!user){startAnonymousSession();return}if(!rulesAccepted){$('#rulesDialog').showModal();return}showChatSession();$('#sessionStatus').textContent='Connecting...';$('#chatStatus').textContent='Connecting to chat...';const begin=()=>{if(!socket?.connected){connectSocket();socket.once('connect',()=>socket.emit('start',chatPreferences()))}else socket.emit('start',chatPreferences())};begin()}
 // Display completed transcripts in a read-only drawer for this browser session.
@@ -62,4 +62,6 @@ $('#reportChat').onclick=async()=>{if(!partnerId||!roomId)return;const reason=pr
 $('#blockChat').onclick=async()=>{if(!partnerId)return;try{await api('/api/student/block',{blockedId:partnerId});toast('This student will not be matched with you again.');if(hasConversation)archiveCurrentChat('Chat ended after block.');socket.emit('stop')}catch(error){toast(error.message)}};
 $('#pastChatsButton').onclick=()=>{renderPastChats();$('#pastChatsDialog').showModal()};$('#closePastChats').onclick=()=>$('#pastChatsDialog').close();$('#saveTranscript').onclick=()=>downloadTranscript();$('#downloadEnded').onclick=()=>downloadTranscript(activeTranscript.length?activeTranscript:pastChats[0]?.entries||[]);$('#downloadTranscript').onclick=()=>downloadTranscript(activeTranscript.length?activeTranscript:pastChats[0]?.entries||[]);$('#copyEnded').onclick=()=>copyTranscript(activeTranscript.length?activeTranscript:pastChats[0]?.entries||[]);$('#copyTranscript').onclick=()=>copyTranscript(activeTranscript.length?activeTranscript:pastChats[0]?.entries||[]);
 $('#adminLink').setAttribute('href','/admin');
-api('/api/auth/session').then(result=>{if(result.hasSession)enterApp();else if(document.body.classList.contains('chat-page'))startAnonymousSession()}).catch(error=>toast(error.message));
+// Restore the saved session or create a fresh one if the browser cookie is stale.
+async function initializeChat(){if(!document.body.classList.contains('chat-page'))return;try{const result=await api('/api/auth/session');if(!result.hasSession){await startAnonymousSession();return}try{await enterApp()}catch(error){if(error.status===401||error.status===403){await startAnonymousSession();return}throw error}}catch(error){toast(error.message)}}
+initializeChat();
