@@ -6,7 +6,7 @@ const { fingerprintForRequest } = require('../security/fingerprint');
 
 // Keep a short queue and pair eligible students randomly while respecting blocks.
 function attachChat(io) {
-  const queue = new Map(), rooms = new Map(), recent = new Map(), preferences = new Map();
+  const queue = new Map(), rooms = new Map(), recent = new Map(), preferences = new Map(), typingSentAt = new Map();
   const onlineStudentCount=()=>new Set([...io.sockets.sockets.values()].map(client=>client.userId)).size;
   function endChat(socket,notify=true) { const room=rooms.get(socket.id); if(!room)return; rooms.delete(socket.id); const otherId=room.users.find(id=>id!==socket.id); rooms.delete(otherId); const other=io.sockets.sockets.get(otherId); if(other){other.leave(room.id);if(notify)other.emit('stranger-disconnected');} socket.leave(room.id); }
   // Prefer the pair with the most shared interests; after ten seconds relax interests.
@@ -29,9 +29,9 @@ function attachChat(io) {
     socket.on('start',options=>{const chosen=Array.isArray(options?.interests)?options.interests.slice(0,10).map(tag=>String(tag).trim().slice(0,24)).filter(tag=>/^[\p{L}\p{N} #+_-]{1,24}$/u.test(tag)&&moderateText(tag).ok&&!moderateText(tag).redacted):[];const rawName=String(options?.nickname||'').trim();const nickname=/^[\p{L}\p{N}_ -]{2,24}$/u.test(rawName)&&moderateText(rawName).ok&&!moderateText(rawName).redacted?rawName:'';const prefs={interests:chosen,nickname};preferences.set(socket.id,prefs);queue.set(socket.id,{socket,userId:socket.userId,fingerprintHash:socket.fingerprintHash,...prefs,queuedAt:Date.now()});socket.emit('queued');tryPair();});
     socket.on('next',()=>{queue.delete(socket.id);const previous=rooms.get(socket.id)?.preferences||preferences.get(socket.id)||{interests:[],nickname:''};endChat(socket);socket.emit('notice','Finding a new student...');queue.set(socket.id,{socket,userId:socket.userId,...previous,queuedAt:Date.now()});socket.emit('queued');tryPair();});
     socket.on('stop',()=>{queue.delete(socket.id);endChat(socket);socket.emit('stopped');});
-    socket.on('typing',()=>{const room=rooms.get(socket.id);if(room)socket.to(room.id).emit('typing');});
+    socket.on('typing',()=>{const room=rooms.get(socket.id),now=Date.now();if(!room||now-(typingSentAt.get(socket.id)||0)<500)return;typingSentAt.set(socket.id,now);socket.to(room.id).emit('typing');});
     socket.on('message',body=>{const room=rooms.get(socket.id);if(!room)return;const now=Date.now(),times=(recent.get(socket.fingerprintHash)||[]).filter(t=>now-t<10_000);if(times.length>=5)return socket.emit('notice','Please wait before sending more messages.');const checked=moderateText(body);if(!checked.ok)return socket.emit('notice',checked.reason);if(checked.redacted)socket.emit('notice','Sensitive or inappropriate content was replaced with [removed].');times.push(now);recent.set(socket.fingerprintHash,times);db.prepare('INSERT INTO chat_messages(room_id,sender_id,body,created_at) VALUES(?,?,?,?)').run(room.id,socket.userId,checked.text,now);io.to(room.id).emit('message',{senderId:socket.userId,text:checked.text,createdAt:now});});
-    socket.on('disconnect',()=>{queue.delete(socket.id);endChat(socket);preferences.delete(socket.id);if(![...io.sockets.sockets.values()].some(client=>client.fingerprintHash===socket.fingerprintHash))recent.delete(socket.fingerprintHash);io.emit('online-count',onlineStudentCount());});
+    socket.on('disconnect',()=>{queue.delete(socket.id);endChat(socket);preferences.delete(socket.id);typingSentAt.delete(socket.id);if(![...io.sockets.sockets.values()].some(client=>client.fingerprintHash===socket.fingerprintHash))recent.delete(socket.fingerprintHash);io.emit('online-count',onlineStudentCount());});
   });
   const fallbackPairing=setInterval(tryPair,1000);fallbackPairing.unref();
 }
