@@ -121,4 +121,11 @@ dialog[open]{position:fixed;inset:0;margin:auto;width:min(620px,calc(100vw - 32p
 .chat-page[data-theme="dark"] dialog{background:#172235;color:#edf3fc;border:1px solid #35445c}
 .chat-page[data-theme="dark"] dialog p,.chat-page[data-theme="dark"] dialog li{color:#c3cee0}
 .chat-page[data-theme="dark"] .nickname-input-wrap:focus-within{outline:3px solid #77a9f7;outline-offset:2px}
+/* Keep secondary text and disabled chat controls readable on dark surfaces. */
+.chat-page[data-theme="dark"]{--ink:#edf3fc;--muted:#c1cde0;--line:#35445c;--pale:#172235}
+.chat-page[data-theme="dark"] .session-title small,.chat-page[data-theme="dark"] .session-status-text,.chat-page[data-theme="dark"] .filter-summary,.chat-page[data-theme="dark"] .lobby-action small,.chat-page[data-theme="dark"] .chat-typing,.chat-page[data-theme="dark"] .chat-event,.chat-page[data-theme="dark"] .chat-header .muted,.chat-page[data-theme="dark"] .chat-status{color:#c1cde0}
+.chat-page[data-theme="dark"] .session-sidebar .muted,.chat-page[data-theme="dark"] .session-sidebar .session-fallback,.chat-page[data-theme="dark"] .session-sidebar .how-works p,.chat-page[data-theme="dark"] .session-sidebar .session-title small,.chat-page[data-theme="dark"] .session-sidebar small{color:#c1cde0}
+.chat-page[data-theme="dark"] button:disabled,.chat-page[data-theme="dark"] input:disabled{opacity:.78}
+.chat-page[data-theme="dark"] .chat-start-actions #startChat:disabled{opacity:.9;color:#fff}
+@media(max-width:740px){.chat-page[data-theme="dark"] .chat-start-actions{background:#101827f5;color:#edf3fc}}
 @media(max-width:740px){.chat-page[data-theme="dark"] .lobby-action{background:#101827f5;border-color:var(--setup-border)}}

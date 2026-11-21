@@ -75,7 +75,7 @@ Staff can review reports and chat context, dismiss reports, warn/suspend/ban/unb
 
 ## Deployment
 
-On Render, Railway, or another persistent Node host, use `npm install` and `npm run build` as build steps and `npm start` as the start command. Set `NODE_ENV=production`, configure all `.env` values as host secrets, serve over HTTPS, and mount persistent storage for `./data`. Set `TRUST_PROXY=true` only when the host's proxy headers are trusted. Keep one app instance for SQLite and in-memory Socket.IO matching; use PostgreSQL and shared real-time state before scaling to multiple instances. Vercel's serverless function runtime is not supported by this server entry point: it starts a long-running Express/Socket.IO listener and keeps live match queues in memory, so deploying it there can cause function errors and cannot reliably match across separate instances.
+On Render, Railway, or another persistent Node host, use `npm install` and `npm run build` as build steps and `npm start` as the start command. Set `NODE_ENV=production`, configure all `.env` values as host secrets, serve over HTTPS, and mount persistent storage for `./data`. Set `TRUST_PROXY=true` only when the host's proxy headers are trusted. Vercel supports WebSocket functions, but this app currently keeps SQLite data and Socket.IO match queues in instance-local storage. Multiple Vercel function instances may not share sessions, reports, or waiting users, and local files are not durable. Use a shared PostgreSQL database and Redis-backed matching/session state before relying on Vercel for real student chats.
 
 ## Five main risks and controls
 
