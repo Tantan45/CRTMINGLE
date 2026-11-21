@@ -32,7 +32,8 @@ router.get('/session', (req, res) => {
 // Keep session creation usable for a school network where many students share one IP.
 router.post('/anonymous-session', rateLimit({ windowMs: 15 * 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }), (req, res) => {
   const currentId = req.session.user?.id;
-  if (currentId && db.prepare('SELECT 1 FROM anonymous_sessions WHERE id=?').get(currentId)) return res.json({ ok: true, id: currentId, existing: true });
+  const currentTokenHash = String(req.session.user?.deviceTokenHash || '');
+  if (currentId && /^[a-f0-9]{64}$/.test(currentTokenHash) && db.prepare('SELECT 1 FROM anonymous_sessions WHERE id=?').get(currentId)) return res.json({ ok: true, id: currentId, existing: true });
   const deviceToken = String(req.body?.deviceToken || '').trim().toLowerCase();
   if (!/^[a-f0-9]{64}$/.test(deviceToken)) return res.status(400).json({ error: 'Could not identify this anonymous browser. Refresh and try again.' });
   const deviceTokenHash = hashDeviceToken(deviceToken);

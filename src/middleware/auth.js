@@ -5,8 +5,10 @@ const { fingerprintForRequest } = require('../security/fingerprint');
 function requireStudent(req, res, next) {
   const id = req.session.user?.id;
   if (!id) return res.status(401).json({ error: 'Start a chat to create your anonymous session.' });
+  const deviceTokenHash = String(req.session.user.deviceTokenHash || '');
+  if (!/^[a-f0-9]{64}$/.test(deviceTokenHash)) return res.status(403).json({ error: 'This anonymous browser session is invalid. Start a new session.' });
   const session = db.prepare('SELECT id,fingerprint_hash,banned_until FROM anonymous_sessions WHERE id=?').get(id);
-  const fingerprint = fingerprintForRequest(req, req.session.user.deviceTokenHash);
+  const fingerprint = fingerprintForRequest(req, deviceTokenHash);
   const fingerprintBan = db.prepare('SELECT banned_until FROM banned_fingerprints WHERE fingerprint_hash=?').get(fingerprint);
   if (!session || (session.banned_until && session.banned_until > Date.now()) || (fingerprintBan?.banned_until > Date.now())) {
     return res.status(403).json({ error: 'This session is suspended from CRTMINGLE.' });

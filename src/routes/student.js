@@ -54,7 +54,10 @@ router.post('/report', (req, res) => {
 router.post('/block', (req, res) => {
   const blockerId = req.session.user.id;
   const targetId = String(req.body?.blockedId || '').slice(0, 100);
-  if (!targetId || targetId === blockerId) return res.status(400).json({ error: 'Invalid chat session.' });
+  const roomId = String(req.body?.roomId || '').slice(0, 100);
+  if (!targetId || targetId === blockerId || !roomId) return res.status(400).json({ error: 'Choose an active chat partner to block.' });
+  const participated = db.prepare('SELECT 1 FROM chat_rooms WHERE id=? AND ((user_a=? AND user_b=?) OR (user_a=? AND user_b=?))').get(roomId, blockerId, targetId, targetId, blockerId);
+  if (!participated) return res.status(403).json({ error: 'You can only block someone you have chatted with.' });
   const target = db.prepare('SELECT fingerprint_hash FROM anonymous_sessions WHERE id=?').get(targetId);
   if (!target) return res.status(404).json({ error: 'Chat session not found.' });
   db.prepare('INSERT OR IGNORE INTO anonymous_blocks(blocker_session_id,blocked_session_id,blocker_fingerprint_hash,blocked_fingerprint_hash,created_at) VALUES(?,?,?,?,?)').run(blockerId, targetId, req.session.user.fingerprintHash, target.fingerprint_hash, Date.now());

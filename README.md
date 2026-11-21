@@ -75,7 +75,7 @@ Staff can review reports and chat context, dismiss reports, warn/suspend/ban/unb
 
 ## Deployment
 
-On Render, Railway, or another Node host, use `npm install` and `npm run build` as build steps and `npm start` as the start command. Set `NODE_ENV=production`, configure all `.env` values as host secrets, serve over HTTPS, and mount persistent storage for `./data`. Set `TRUST_PROXY=true` only when the host's proxy headers are trusted. Keep one app instance for SQLite and in-memory Socket.IO matching; use PostgreSQL and shared real-time state before scaling to multiple instances.
+On Render, Railway, or another persistent Node host, use `npm install` and `npm run build` as build steps and `npm start` as the start command. Set `NODE_ENV=production`, configure all `.env` values as host secrets, serve over HTTPS, and mount persistent storage for `./data`. Set `TRUST_PROXY=true` only when the host's proxy headers are trusted. Keep one app instance for SQLite and in-memory Socket.IO matching; use PostgreSQL and shared real-time state before scaling to multiple instances. Vercel's serverless function runtime is not supported by this server entry point: it starts a long-running Express/Socket.IO listener and keeps live match queues in memory, so deploying it there can cause function errors and cannot reliably match across separate instances.
 
 ## Five main risks and controls
 

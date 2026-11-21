@@ -46,6 +46,7 @@ router.post('/login', (req, res) => {
 
 // Return safety reports with chat context and anonymous session/fingerprint details.
 router.get('/data', requireAdmin, (req, res) => {
+  res.set('Cache-Control', 'no-store');
   const reports = db.prepare("SELECT id,reporter_session_id,reported_session_id,reported_fingerprint_hash,room_id,reason,status,created_at FROM anonymous_reports WHERE status='open' ORDER BY created_at DESC LIMIT 100")
     .all().map(report => ({ ...report, messages: db.prepare('SELECT sender_id,body,created_at FROM chat_messages WHERE room_id=? ORDER BY id DESC LIMIT 20').all(report.room_id).reverse() }));
   const timezone = process.env.CHAT_TIMEZONE || 'Asia/Manila';
@@ -67,7 +68,17 @@ router.get('/data', requireAdmin, (req, res) => {
 // Ban or unban by session, fingerprint, or report; edit chat safety settings.
 router.post('/action', requireAdmin, (req, res) => {
   const { action, reportId, sessionId, fingerprintHash, reportLimit, reportWindowHours, blockedTerms } = req.body || {};
+  const allowedActions = new Set(['ban', 'suspend', 'unban', 'warn', 'dismiss', undefined]);
+  if (!allowedActions.has(action)) return res.status(400).json({ error: 'Unknown moderation action.' });
   let savedBlockedTerms;
+  if (typeof blockedTerms === 'string') {
+    if (blockedTerms.length > 5000) return res.status(400).json({ error: 'Blocked words list is too long.' });
+    const words = blockedTerms.split(',').map(word => word.trim()).filter(Boolean);
+    if (words.length > 200 || words.some(word => word.length > 40 || !/^[\p{L}\p{N} _'-]+$/u.test(word))) return res.status(400).json({ error: 'Use up to 200 comma-separated words, max 40 letters/numbers each.' });
+    savedBlockedTerms = words.join(',');
+  }
+  const hasThresholds = reportLimit !== undefined || reportWindowHours !== undefined;
+  if (hasThresholds && (!Number.isInteger(reportLimit) || reportLimit < 1 || reportLimit > 20 || !Number.isInteger(reportWindowHours) || reportWindowHours < 1 || reportWindowHours > 168)) return res.status(400).json({ error: 'Set reports from 1 to 20 and hours from 1 to 168.' });
   let targetSession = typeof sessionId === 'string' ? sessionId.trim().slice(0, 128) : '';
   let targetFingerprint = typeof fingerprintHash === 'string' ? fingerprintHash.trim().toLowerCase() : '';
   let report = null;
@@ -79,6 +90,8 @@ router.post('/action', requireAdmin, (req, res) => {
   if (['ban', 'suspend', 'unban', 'warn'].includes(action)) {
     if (targetFingerprint && !/^[a-f0-9]{64}$/.test(targetFingerprint)) return res.status(400).json({ error: 'Fingerprint must be a 64-character hexadecimal hash.' });
     const row = targetSession ? db.prepare('SELECT fingerprint_hash FROM anonymous_sessions WHERE id=?').get(targetSession) : null;
+    if (targetSession && !row && !targetFingerprint) return res.status(404).json({ error: 'Anonymous session was not found. Provide its fingerprint to manage it after session cleanup.' });
+    if (row && targetFingerprint && row.fingerprint_hash !== targetFingerprint) return res.status(400).json({ error: 'The session ID and fingerprint do not belong to the same session.' });
     if (!targetFingerprint && row) targetFingerprint = row.fingerprint_hash;
     if (!targetSession && !targetFingerprint) return res.status(400).json({ error: 'Choose a session ID, report, or fingerprint.' });
     const now = Date.now(), until = action === 'suspend' ? now + 24 * 60 * 60_000 : now + 10 * 365 * 24 * 60 * 60_000;
@@ -96,8 +109,12 @@ router.post('/action', requireAdmin, (req, res) => {
     audit(action, targetSession || targetFingerprint, reportId ? `report ${reportId}` : '');
   }
   if (action === 'dismiss' && Number.isInteger(reportId)) { db.prepare("UPDATE anonymous_reports SET status='dismissed' WHERE id=?").run(reportId); audit('dismiss report', String(reportId)); }
-  if (Number.isInteger(reportLimit) && reportLimit >= 1 && reportLimit <= 20 && Number.isInteger(reportWindowHours) && reportWindowHours >= 1 && reportWindowHours <= 168) { writeSetting.run('report_limit', String(reportLimit)); writeSetting.run('report_window_hours', String(reportWindowHours)); audit('change report threshold', '', `${reportLimit} reports/${reportWindowHours} hours`); }
-  if (typeof blockedTerms === 'string' && blockedTerms.length <= 5000) { const words = blockedTerms.split(',').map(word => word.trim()).filter(Boolean); if (words.length > 200 || words.some(word => word.length > 40 || !/^[\p{L}\p{N} _'-]+$/u.test(word))) return res.status(400).json({ error: 'Use up to 200 comma-separated words, max 40 letters/numbers each.' }); savedBlockedTerms=words.join(',');writeSetting.run('blocked_terms', savedBlockedTerms);audit('edit blocked words', '', `${words.length} terms saved`); }
+  if (hasThresholds) {
+    writeSetting.run('report_limit', String(reportLimit));
+    writeSetting.run('report_window_hours', String(reportWindowHours));
+    audit('change report threshold', '', `${reportLimit} reports/${reportWindowHours} hours`);
+  }
+  if (savedBlockedTerms !== undefined) { writeSetting.run('blocked_terms', savedBlockedTerms); audit('edit blocked words', '', `${savedBlockedTerms ? savedBlockedTerms.split(',').length : 0} terms saved`); }
   res.json({ ok: true, ...(savedBlockedTerms !== undefined ? { blockedTerms: savedBlockedTerms } : {}) });
 });
 
